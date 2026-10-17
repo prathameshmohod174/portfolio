@@ -3,12 +3,14 @@ name: Portfolio browser checks
 on:
   push:
     branches:
-      - main
-      - design/random-hours-visual-refresh
+      - '**'
   pull_request:
     branches:
       - main
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   browser-checks:
@@ -21,6 +23,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - name: Install dependencies
         run: npm install
       - name: Install Chromium and system dependencies
