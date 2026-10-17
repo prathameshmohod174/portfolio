@@ -276,13 +276,14 @@ def main():
             "final_readiness_adjusted_score": gated_score, "target_reached": target_reached,
             "accepted_iterations": accepted, "criteria": criteria, "readiness_audit": audit, "history": history
         }
-        (ROOT / "local-ai-review-report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+        report_path = (ROOT / "local-ai-review-report.json") if accepted else (ROOT.parent / "local-ai-review-report.json")
+        report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
         if accepted == 0:
             INDEX.write_text(original_html, encoding="utf-8")
             run(["git", "switch", original_branch], check=False)
             run(["git", "branch", "-D", branch], check=False)
             print("No CSS improvements passed validation. No code changes will be pushed.")
-            print("Review report saved locally to local-ai-review-report.json.")
+            print(f"Review report saved outside the repository to {report_path}.")
             if not target_reached and audit["blockers"]:
                 print("The target remains unmet because CSS-only changes cannot resolve the readiness blockers.")
             return
