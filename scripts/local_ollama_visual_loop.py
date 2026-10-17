@@ -1,4 +1,4 @@
-import base64, json, os, re, subprocess, sys, urllib.request
+import base64, json, os, re, subprocess, sys, urllib.request, urllib.error
 from datetime import datetime
 from pathlib import Path
 
@@ -31,11 +31,15 @@ def screenshots():
 def model_json(prompt, images):
     payload = {"model": MODEL, "stream": False, "format": "json",
         "messages": [{"role": "user", "content": prompt, "images": images}],
-        "options": {"temperature": 0.1, "num_predict": 1400}}
+        "options": {"temperature": 0.1, "num_predict": 900}}
     req = urllib.request.Request(API, data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=300) as response:
-        result = json.loads(response.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=300) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Ollama HTTP {exc.code}: {detail[:1200]}") from exc
     content = result.get("message", {}).get("content", "")
     if not content:
         raise RuntimeError("Ollama returned an empty response.")
@@ -139,7 +143,7 @@ def ask_for_proposal(html, images, current_score, criteria, audit):
         "If no meaningful CSS improvement is available, return changed=false. Do not propose cosmetic churn or extra glow. "
         "The 8.5/10 target is considered achieved only when the aesthetic score reaches the target AND the audit has no blockers. "
         "If the score is already at target but blockers remain, only propose a genuinely useful CSS improvement; otherwise changed=false. "
-        "Current CSS follows:\n" + css_now(html)[:9000]
+        "Relevant current CSS (trimmed to limit local model context):\n" + css_now(html)[:2800]
     )
     return model_json(prompt, images)
 
