@@ -143,7 +143,7 @@ def ask_for_proposal(html, images, current_score, criteria, audit):
         "If no meaningful CSS improvement is available, return changed=false. Do not propose cosmetic churn or extra glow. "
         "The 8.5/10 target is considered achieved only when the aesthetic score reaches the target AND the audit has no blockers. "
         "If the score is already at target but blockers remain, only propose a genuinely useful CSS improvement; otherwise changed=false. "
-        "Current CSS follows:\n" + css_now(html)[:9000]
+        "Relevant current CSS (trimmed to limit local model context):\n" + css_now(html)[:2800]
     )
     return model_json(prompt, images)
 
