@@ -7,6 +7,8 @@ import pathlib
 import sys
 import urllib.error
 import urllib.request
+from io import BytesIO
+from PIL import Image
 
 ROOT = pathlib.Path.cwd()
 api_key = os.environ.get("GEMINI_API_KEY")
@@ -39,10 +41,17 @@ Current index.html follows:
 ---END CURRENT HTML---"""
 
 def image_part(path):
+    # Full-page Playwright PNGs can be huge. Downscale and JPEG-compress before
+    # sending them to Gemini to reduce upload time and vision-processing latency.
+    with Image.open(path) as image:
+        image = image.convert("RGB")
+        image.thumbnail((1280, 7000))
+        buffer = BytesIO()
+        image.save(buffer, format="JPEG", quality=72, optimize=True)
     return {
         "inline_data": {
-            "mime_type": "image/png",
-            "data": base64.b64encode(path.read_bytes()).decode("ascii")
+            "mime_type": "image/jpeg",
+            "data": base64.b64encode(buffer.getvalue()).decode("ascii")
         }
     }
 
@@ -70,7 +79,7 @@ payload = {
             "propertyOrdering": ["changed", "summary", "html"]
         },
         "temperature": 0.2,
-        "maxOutputTokens": 12000
+        "maxOutputTokens": 7000
     }
 }
 url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + api_key
@@ -81,7 +90,7 @@ request = urllib.request.Request(
     method="POST"
 )
 try:
-    with urllib.request.urlopen(request, timeout=180) as response:
+    with urllib.request.urlopen(request, timeout=300) as response:
         result = json.loads(response.read().decode("utf-8"))
 except urllib.error.HTTPError as exc:
     body = exc.read().decode("utf-8", errors="replace")
