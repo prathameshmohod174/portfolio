@@ -89,13 +89,16 @@ jobs:
             exit 0
           fi
           git commit -m "Propose AI-reviewed visual improvements"
-          git push origin "$BRANCH"
           echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Re-run desktop and mobile validation on proposed fix
         if: steps.branch.outputs.changed == 'true'
         run: npx playwright test --project=chromium --project=mobile-chromium
+
+      - name: Push validated repair branch
+        if: success() && steps.branch.outputs.changed == 'true'
+        run: git push origin "${{ steps.branch.outputs.branch }}"
 
       - name: Upload proposed-fix test results
         if: always() && steps.branch.outputs.changed == 'true'
