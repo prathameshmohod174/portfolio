@@ -1,0 +1,126 @@
+name: AI visual review and guarded repair
+
+on:
+  workflow_dispatch:
+    inputs:
+      review_branch:
+        description: "Branch to review (normally main after the design PR is merged)"
+        required: true
+        default: "main"
+        type: string
+  schedule:
+    - cron: "17 10 * * 1"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ai-visual-review-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  review-and-propose:
+    # Never run AI code generation on pull_request events, where secrets may be unavailable or unsafe.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      BASE_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.review_branch || github.event.repository.default_branch }}
+    steps:
+      - name: Check out portfolio branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.review_branch || github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Require Gemini secret
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::Missing GEMINI_API_KEY. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Capture baseline desktop and mobile screenshots
+        run: npx playwright test --project=chromium --project=mobile-chromium
+
+      - name: Upload baseline screenshots and test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-visual-review-baseline-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Ask Gemini to review screenshots and propose a minimal fix
+        id: ai
+        run: |
+          python3 .github/scripts/gemini_visual_review.py
+
+      - name: Create isolated repair branch
+        id: branch
+        if: steps.ai.outcome == 'success'
+        run: |
+          BRANCH="ai/visual-review-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "Propose AI-reviewed visual improvements"
+          git push origin "$BRANCH"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Re-run desktop and mobile validation on proposed fix
+        if: steps.branch.outputs.changed == 'true'
+        run: npx playwright test --project=chromium --project=mobile-chromium
+
+      - name: Upload proposed-fix test results
+        if: always() && steps.branch.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-visual-review-validation-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Open draft pull request only after tests pass
+        if: success() && steps.branch.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr create \
+            --repo "$REPOSITORY" \
+            --base "$BASE_BRANCH" \
+            --head "${{ steps.branch.outputs.branch }}" \
+            --draft \
+            --title "AI visual review: proposed portfolio refinements" \
+            --body "Automated visual review of desktop/mobile screenshots using Gemini's free-tier API. This PR changes only index.html. Playwright desktop and mobile Chromium tests passed before this draft PR was opened. Please inspect the visual result before merging; no changes are merged automatically."
+
+      - name: Report when no safe changes were proposed
+        if: success() && steps.branch.outputs.changed != 'true'
+        run: echo "No meaningful safe visual change was proposed; no branch or PR was created."
