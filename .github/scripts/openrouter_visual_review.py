@@ -156,5 +156,6 @@ for selector, declarations in re.findall(r"([^{}]+)\{([^{}]+)\}", css_patch):
         raise SystemExit("CSS patch contains an invalid rule; refusing the change.")
 
 new_css = source_css.rstrip() + "\n\n/* AI visual-review overrides; reviewed by Playwright before PR creation. */\n" + css_patch + "\n"
+new_html = source_html[:style_match.start(1)] + new_css + source_html[style_match.end(1):]
 html_path.write_text(new_html, encoding="utf-8")
 print("Appended a small CSS-only patch. Playwright must pass before a PR can be opened.")
