@@ -65,7 +65,8 @@ payload = {
     "model": "openrouter/free",
     "messages": [{"role": "user", "content": content}],
     "temperature": 0.2,
-    "max_tokens": 900
+    "max_tokens": 1400,
+    "reasoning": {"effort": "low"}
 }
 request_data = json.dumps(payload).encode("utf-8")
 url = "https://openrouter.ai/api/v1/chat/completions"
@@ -106,6 +107,17 @@ if result is None:
 try:
     choice = result["choices"][0]
     message = choice["message"]
+    usage = result.get("usage", {}) or {}
+    print(
+        "OpenRouter selected model:",
+        result.get("model", "unknown"),
+        "| finish_reason:",
+        choice.get("finish_reason", "unknown"),
+        "| completion_tokens:",
+        usage.get("completion_tokens", "unknown"),
+        "| reasoning_tokens:",
+        (usage.get("completion_tokens_details") or {}).get("reasoning_tokens", "unknown")
+    )
     raw = message.get("content", "")
     if isinstance(raw, list):
         raw = "".join(part.get("text", "") for part in raw if isinstance(part, dict))
