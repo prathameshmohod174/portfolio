@@ -70,6 +70,9 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Install image compression helper
+        run: python3 -m pip install --disable-pip-version-check Pillow
+
       - name: Ask Gemini to review screenshots and propose a minimal fix
         id: ai
         run: |
