@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
       BASE_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.review_branch || github.event.repository.default_branch }}
@@ -37,10 +37,10 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.review_branch || github.event.repository.default_branch }}
           fetch-depth: 0
 
-      - name: Require Gemini secret
+      - name: Require OpenRouter secret
         run: |
-          if [ -z "$GEMINI_API_KEY" ]; then
-            echo "::error::Missing GEMINI_API_KEY. Add it under Settings > Secrets and variables > Actions."
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error::Missing OPENROUTER_API_KEY. Add it under Settings > Secrets and variables > Actions."
             exit 1
           fi
 
@@ -73,7 +73,7 @@ jobs:
       - name: Install image compression helper
         run: python3 -m pip install --disable-pip-version-check Pillow
 
-      - name: Ask Gemini to review screenshots and propose a minimal fix
+      - name: Ask OpenRouter to review screenshots and propose a minimal fix
         id: ai
         run: |
           python3 .github/scripts/gemini_visual_review.py
@@ -125,7 +125,7 @@ jobs:
             --head "${{ steps.branch.outputs.branch }}" \
             --draft \
             --title "AI visual review: proposed portfolio refinements" \
-            --body "Automated visual review of desktop/mobile screenshots using Gemini's free-tier API. This PR changes only index.html. Playwright desktop and mobile Chromium tests passed before this draft PR was opened. Please inspect the visual result before merging; no changes are merged automatically."
+            --body "Automated visual review of desktop/mobile screenshots using OpenRouter's free-model router. This PR changes only index.html. Playwright desktop and mobile Chromium tests passed before this draft PR was opened. Please inspect the visual result before merging; no changes are merged automatically."
 
       - name: Report when no safe changes were proposed
         if: success() && steps.branch.outputs.changed != 'true'
