@@ -170,12 +170,16 @@ def score_current(html, images):
         except (TypeError, ValueError):
             value = score
         criteria[key] = max(0.0, min(10.0, value))
-    # Deterministic audit caps prevent a high subjective score from masking basic portfolio-readiness gaps.
+    return score, str(data.get("summary", "")), criteria, audit
+
+def evaluated_score(aesthetic_score, audit):
+    # Gate the target, not CSS iteration gains: content blockers must not make visual progress impossible.
+    score = aesthetic_score
     if audit["cards_with_real_media"] < min(3, audit["project_cards"]) and audit["project_cards"]:
         score = min(score, 7.0)
     if len(audit["generic_titles"]) >= 2:
         score = min(score, 7.5)
-    return score, str(data.get("summary", "")), criteria, audit
+    return score
 
 def main():
     os.chdir(ROOT)
@@ -195,15 +199,17 @@ def main():
     try:
         images = screenshots()
         score, note, criteria, audit = score_current(current_html, images)
-        print(f"Initial evaluated score: {score:.1f}/10 — {note}")
+        gated_score = evaluated_score(score, audit)
+        print(f"Initial aesthetic score: {score:.1f}/10; readiness-adjusted score: {gated_score:.1f}/10 — {note}")
         print("Rubric:", rubric_text(criteria))
         if audit["blockers"]:
             print("Portfolio-readiness blockers:")
             for blocker in audit["blockers"]:
                 print(" -", blocker)
         for iteration in range(1, MAX_ITERATIONS + 1):
-            if score >= TARGET and not audit["blockers"]:
-                print(f"Target reached: {score:.1f}/10 >= {TARGET}/10 and no readiness blockers remain.")
+            gated_score = evaluated_score(score, audit)
+            if gated_score >= TARGET and not audit["blockers"]:
+                print(f"Target reached: {gated_score:.1f}/10 >= {TARGET}/10 and no readiness blockers remain.")
                 break
             if stagnation >= 3:
                 print("Stopping: three consecutive proposals failed to improve the evaluated score.")
@@ -235,7 +241,9 @@ def main():
                 continue
             gain = after_score - score
             record = {
-                "iteration": iteration, "before": score, "after": after_score, "gain": gain,
+                "iteration": iteration, "before_aesthetic_score": score, "after_aesthetic_score": after_score,
+                "before_readiness_score": evaluated_score(score, audit),
+                "after_readiness_score": evaluated_score(after_score, after_audit), "aesthetic_gain": gain,
                 "summary": summary, "evaluation": after_note, "criteria": after_criteria,
                 "readiness_audit": after_audit
             }
@@ -252,7 +260,8 @@ def main():
                     print("Still blocked from target:")
                     for blocker in audit["blockers"]:
                         print(" -", blocker)
-                if score >= TARGET and not audit["blockers"]:
+                gated_score = evaluated_score(score, audit)
+                if gated_score >= TARGET and not audit["blockers"]:
                     print("Quality target reached with all readiness gates passing.")
                     break
             else:
@@ -260,9 +269,11 @@ def main():
                 print(f"REJECTED: evaluated score gain {gain:.1f} is below required {MIN_GAIN:.1f}. {after_note}")
                 stagnation += 1
                 images = screenshots()
-        target_reached = score >= TARGET and not audit["blockers"]
+        gated_score = evaluated_score(score, audit)
+        target_reached = gated_score >= TARGET and not audit["blockers"]
         report = {
-            "model": MODEL, "target": TARGET, "final_score": score, "target_reached": target_reached,
+            "model": MODEL, "target": TARGET, "final_aesthetic_score": score,
+            "final_readiness_adjusted_score": gated_score, "target_reached": target_reached,
             "accepted_iterations": accepted, "criteria": criteria, "readiness_audit": audit, "history": history
         }
         (ROOT / "local-ai-review-report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
@@ -283,13 +294,13 @@ def main():
         if gh.returncode == 0:
             pr = run(["gh", "pr", "create", "--draft", "--base", "main", "--head", branch,
                 "--title", "Local AI visual improvements", "--body",
-                f"Local Ollama iterative visual review. Accepted {accepted} improvement(s); evaluated score {score:.1f}/10; target {TARGET}/10; readiness gates {'passed' if target_reached else 'not all passed'}. See local-ai-review-report.json. Playwright passed for accepted changes. No auto-merge."], check=False)
+                f"Local Ollama iterative visual review. Accepted {accepted} improvement(s); aesthetic score {score:.1f}/10; readiness-adjusted score {gated_score:.1f}/10; target {TARGET}/10; readiness gates {'passed' if target_reached else 'not all passed'}. See local-ai-review-report.json. Playwright passed for accepted changes. No auto-merge."], check=False)
             if pr.returncode != 0:
                 print("Draft PR creation failed. Compare:", compare)
         else:
             print("Branch pushed; install/authenticate GitHub CLI for automatic draft PR creation.")
             print("Compare:", compare)
-        print(f"Finished: {score:.1f}/10; accepted {accepted} iteration(s); target reached={target_reached}; branch {branch}")
+        print(f"Finished: aesthetic {score:.1f}/10; readiness-adjusted {gated_score:.1f}/10; accepted {accepted} iteration(s); target reached={target_reached}; branch {branch}")
     finally:
         if accepted == 0:
             INDEX.write_text(original_html, encoding="utf-8")
