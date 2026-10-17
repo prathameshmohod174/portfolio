@@ -1,4 +1,4 @@
-import base64, json, os, re, subprocess, sys, urllib.request
+import base64, json, os, re, subprocess, sys, urllib.request, urllib.error
 from datetime import datetime
 from pathlib import Path
 
@@ -31,11 +31,15 @@ def screenshots():
 def model_json(prompt, images):
     payload = {"model": MODEL, "stream": False, "format": "json",
         "messages": [{"role": "user", "content": prompt, "images": images}],
-        "options": {"temperature": 0.1, "num_predict": 1400}}
+        "options": {"temperature": 0.1, "num_predict": 900}}
     req = urllib.request.Request(API, data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=300) as response:
-        result = json.loads(response.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=300) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Ollama HTTP {exc.code}: {detail[:1200]}") from exc
     content = result.get("message", {}).get("content", "")
     if not content:
         raise RuntimeError("Ollama returned an empty response.")
