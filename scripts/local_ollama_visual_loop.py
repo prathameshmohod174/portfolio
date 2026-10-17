@@ -160,13 +160,15 @@ def main():
                 print(f"REJECTED: score gain {gain:.1f} is below required {MIN_GAIN:.1f}. {after_note}")
                 stagnation += 1
                 images = screenshots()
+        if accepted == 0:
+            INDEX.write_text(original_html, encoding="utf-8")
+            run(["git", "switch", original_branch], check=False)
+            run(["git", "branch", "-D", branch], check=False)
+            print("No improvements passed validation. Nothing will be pushed.")
+            return
         report = {"model": MODEL, "target": TARGET, "final_score": score,
                   "accepted_iterations": accepted, "history": history}
         (ROOT / "local-ai-review-report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
-        if accepted == 0:
-            INDEX.write_text(original_html, encoding="utf-8")
-            print("No improvements passed validation. Nothing will be pushed.")
-            return
         run(["git", "add", "index.html", "local-ai-review-report.json"])
         run(["git", "commit", "-m", "Apply validated local AI visual improvements"])
         run(["git", "push", "-u", "origin", branch])
@@ -183,8 +185,8 @@ def main():
             print("Compare:", compare)
         print(f"Finished: {score:.1f}/10; accepted {accepted} iteration(s); branch {branch}")
     finally:
-        INDEX.write_text(current_html if accepted else original_html, encoding="utf-8")
-        run(["git", "switch", original_branch], check=False)
+        if accepted == 0:
+            INDEX.write_text(original_html, encoding="utf-8")
 
 if __name__ == "__main__":
     try:
