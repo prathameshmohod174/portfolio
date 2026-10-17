@@ -76,7 +76,7 @@ jobs:
       - name: Ask OpenRouter to review screenshots and propose a minimal fix
         id: ai
         run: |
-          python3 .github/scripts/gemini_visual_review.py
+          python3 .github/scripts/openrouter_visual_review.py
 
       - name: Create isolated repair branch
         id: branch
