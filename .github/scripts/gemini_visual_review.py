@@ -113,8 +113,9 @@ if len(new_html) < 1000 or len(new_html) > 150_000:
     raise SystemExit("Model output size is outside the safety bounds.")
 # Preserve links as a safety check: all existing HTTP(S) URLs must remain present.
 import re
-old_urls = set(re.findall(r'https?://[^\s\\"\'<>]+', source_html))
-new_urls = set(re.findall(r'https?://[^\s\\"\'<>]+', new_html))
+url_pattern = r"https?://[^\\s\\\"'<>]+"
+old_urls = set(re.findall(url_pattern, source_html))
+new_urls = set(re.findall(url_pattern, new_html))
 missing = old_urls - new_urls
 if missing:
     raise SystemExit("Proposed HTML removes one or more existing URLs; refusing the change.")
