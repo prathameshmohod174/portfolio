@@ -29,9 +29,9 @@ def screenshots():
     return [base64.b64encode(p.read_bytes()).decode("ascii") for p in paths]
 
 def model_json(prompt, images):
-    payload = {"model": MODEL, "stream": False, "format": "json",
+    payload = {"model": MODEL, "stream": False, "format": "json", "think": False,
         "messages": [{"role": "user", "content": prompt, "images": images}],
-        "options": {"temperature": 0.1, "num_predict": 900}}
+        "options": {"temperature": 0.1, "num_predict": 1200}}
     req = urllib.request.Request(API, data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"})
     try:
@@ -40,9 +40,19 @@ def model_json(prompt, images):
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"Ollama HTTP {exc.code}: {detail[:1200]}") from exc
-    content = result.get("message", {}).get("content", "")
+    message = result.get("message") or {}
+    content = message.get("content", "")
     if not content:
-        raise RuntimeError("Ollama returned an empty response.")
+        thinking = message.get("thinking", "")
+        done_reason = result.get("done_reason", "unknown")
+        prompt_tokens = result.get("prompt_eval_count", "unknown")
+        eval_tokens = result.get("eval_count", "unknown")
+        raise RuntimeError(
+            "Ollama returned empty message.content "
+            f"(done_reason={done_reason}, prompt_tokens={prompt_tokens}, "
+            f"eval_tokens={eval_tokens}, thinking_chars={len(thinking)}). "
+            "The model may have used its token budget for internal reasoning."
+        )
     try:
         data = json.loads(content)
     except json.JSONDecodeError as exc:
