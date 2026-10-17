@@ -11,7 +11,7 @@ TARGET = float(os.environ.get("VISUAL_TARGET", "8.5"))
 MAX_ITERATIONS = min(10, max(1, int(os.environ.get("VISUAL_MAX_ITERATIONS", "10"))))
 MIN_GAIN = float(os.environ.get("VISUAL_MIN_GAIN", "0.2"))
 GENERIC_TITLE = re.compile(
-    r"^(selected film|long-form video project|editing study|editing reel collection)(\s*[-—/]\s*\d+)?$",
+    r"^(selected film|long-form video project|editing study|editing reel collection)(?:\s*(?:[-—/]\s*)?\d+)?$",
     re.I
 )
 
