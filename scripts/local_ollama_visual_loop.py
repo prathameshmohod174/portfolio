@@ -18,7 +18,7 @@ def run(args, check=True, capture=False):
         stderr=subprocess.STDOUT if capture else None)
 
 def screenshots():
-    run(["npm", "run", "test:chromium"])
+    run(["npm.cmd", "run", "test:chromium"])
     paths = [SHOTS / "desktop.png", SHOTS / "mobile.png"]
     if not all(p.exists() for p in paths):
         raise RuntimeError("Playwright did not create both desktop and mobile screenshots.")
