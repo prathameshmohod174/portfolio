@@ -18,7 +18,7 @@ The loop:
 - accepts a patch only when the evaluated score improves by at least 0.2 and browser tests pass;
 - considers the 8.5/10 target reached only when the evaluated score meets the target **and** all deterministic readiness gates pass;
 - stops at the target, after 10 iterations, after 3 consecutive non-improving attempts, or when the model has no useful CSS-only improvement;
-- writes `local-ai-review-report.json` with rubric scores, readiness blockers, and iteration history;
+- writes `local-ai-review-report.json` with rubric scores, readiness blockers, and iteration history when changes are accepted; when no CSS change is accepted, saves the report as `../local-ai-review-report.json` outside the repository so the next run still starts with a clean worktree;
 - pushes accepted changes only after validation and creates a draft PR if GitHub CLI is installed and authenticated;
 - never merges automatically.
 
