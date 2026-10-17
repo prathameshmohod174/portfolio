@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "my creative portfolio",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "test": "playwright test",
+    "test:chromium": "playwright test --project=chromium --project=mobile-chromium"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/prathameshmohod174/portfolio.git"
