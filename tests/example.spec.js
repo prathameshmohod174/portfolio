@@ -1,19 +1,37 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
 
-test('has title', async ({ page }) => {
-  await page.goto('https://playwright.dev/');
+test('Random Hours homepage renders its key sections', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await expect(page).toHaveTitle(/Random Hours/);
+  await expect(page.getByRole('heading', { name: /Stories told in frames/i })).toBeVisible();
+  await expect(page.locator('#work')).toBeAttached();
+  await expect(page.locator('#editing')).toBeAttached();
+  await expect(page.locator('#about')).toBeAttached();
+  await expect(page.locator('#contact')).toBeAttached();
 
-  // Expect a title "to contain" a substring.
-  await expect(page).toHaveTitle(/Playwright/);
+  const screenshotName = testInfo.project.name === 'mobile-chromium' ? 'mobile.png' : 'desktop.png';
+  await page.screenshot({ path: `test-results/screenshots/${screenshotName}`, fullPage: true });
 });
 
-test('get started link', async ({ page }) => {
-  await page.goto('https://playwright.dev/');
+test('primary navigation links point to existing sections', async ({ page }) => {
+  await page.goto('/');
+  for (const section of ['work', 'editing', 'about', 'contact']) {
+    await expect(page.locator(`#primary-navigation a[href="#${section}"]`)).toHaveCount(1);
+    await expect(page.locator(`#${section}`)).toHaveCount(1);
+  }
+});
 
-  // Click the get started link.
-  await page.getByRole('link', { name: 'Get started' }).click();
+test('mobile navigation opens and closes', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium', 'Mobile-only interaction test');
+  await page.goto('/');
+  const menu = page.getByRole('button', { name: /menu/i });
+  const navigation = page.locator('#primary-navigation');
 
-  // Expects page to have a heading with the name of Installation.
-  await expect(page.getByRole('heading', { name: 'Installation' })).toBeVisible();
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  await menu.click();
+  await expect(menu).toHaveAttribute('aria-expanded', 'true');
+  await expect(navigation.getByRole('link', { name: 'Work' })).toBeVisible();
+  await navigation.getByRole('link', { name: 'Work' }).click();
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
 });
