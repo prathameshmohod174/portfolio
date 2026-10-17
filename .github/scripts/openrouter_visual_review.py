@@ -60,7 +60,6 @@ content.extend(image_part(mobile, "Mobile full-page screenshot."))
 payload = {
     "model": "openrouter/free",
     "messages": [{"role": "user", "content": content}],
-    "response_format": {"type": "json_object"},
     "temperature": 0.2,
     "max_tokens": 7000
 }
@@ -101,17 +100,36 @@ if result is None:
     raise SystemExit("OpenRouter did not return a response.")
 
 try:
-    message = result["choices"][0]["message"]
+    choice = result["choices"][0]
+    message = choice["message"]
     raw = message.get("content", "")
     if isinstance(raw, list):
         raw = "".join(part.get("text", "") for part in raw if isinstance(part, dict))
-    # Be tolerant of harmless JSON fences, but validate the parsed shape below.
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("empty message content")
     raw = raw.strip()
+    # Models sometimes add a short preamble or Markdown fences despite the JSON-only prompt.
     if raw.startswith("```"):
-        raw = re.sub(r"^\`\`\`(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*\`\`\`$", "", raw)
-    review = json.loads(raw)
-except Exception:
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+    try:
+        review = json.loads(raw)
+    except json.JSONDecodeError:
+        first = raw.find("{")
+        if first < 0:
+            raise
+        review, _ = json.JSONDecoder().raw_decode(raw[first:])
+except Exception as exc:
+    choice = result.get("choices", [{}])[0] if result.get("choices") else {}
+    message = choice.get("message", {}) if isinstance(choice, dict) else {}
+    raw = message.get("content", "") if isinstance(message, dict) else ""
+    if isinstance(raw, list):
+        raw = "".join(part.get("text", "") for part in raw if isinstance(part, dict))
+    if not isinstance(raw, str):
+        raw = repr(raw)
+    finish_reason = choice.get("finish_reason", "unknown") if isinstance(choice, dict) else "unknown"
+    print(f"OpenRouter JSON parse failed (finish_reason={finish_reason}, error={type(exc).__name__}).", file=sys.stderr)
+    print("Response preview (first 1200 chars): " + raw[:1200].replace("\\n", " "), file=sys.stderr)
     raise SystemExit("OpenRouter response was not valid JSON; refusing to modify files.")
 
 if not isinstance(review.get("changed"), bool) or not isinstance(review.get("summary"), str) or not isinstance(review.get("html"), str):
