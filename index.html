@@ -39,7 +39,7 @@ a{color:inherit;text-decoration:none}a:focus-visible,button:focus-visible{outlin
 .resolve-mark span:nth-child(3){transform:translateY(-12px);border-color:#928d81}
 .premiere-mark{color:#b7a8ff;text-shadow:0 0 28px #6e55ff44}
 .aftereffects-mark{color:#b7a8ff;text-shadow:0 0 28px #6e55ff44}
-.canva-mark{font-family:Georgia,serif;font-style:italic;font-weight:400;color:#b8c5d3;border:2px solid #b8c5d3;border-radius:50%;width:76px;height:76px;margin:auto;align-self:center;justify-content:center;font-size:48px;letter-spacing:-.08em}
+.canva-mark span{display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:76px;height:76px;flex:0 0 76px;border:2px solid #b8c5d3;border-radius:50%;font-family:Georgia,serif;font-style:italic;font-weight:400;color:#b8c5d3;font-size:48px;letter-spacing:-.08em;line-height:1}
 @media(max-width:780px){.toolkit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.toolkit-grid{grid-template-columns:1fr}.toolkit-card{min-height:0}.toolkit-art,.software-mark{height:160px}}
 </style>
@@ -135,7 +135,7 @@ a{color:inherit;text-decoration:none}a:focus-visible,button:focus-visible{outlin
       </article>
       <article class="toolkit-card">
         <div class="toolkit-kicker">06 / Design</div>
-        <div class="software-mark canva-mark" aria-hidden="true">C</div>
+        <div class="software-mark canva-mark" aria-hidden="true"><span>C</span></div>
         <div class="toolkit-info"><div class="tag">Design &amp; layouts</div><h3>Canva</h3><p>For quick design work, layouts and supporting visuals.</p></div>
       </article>
     </div>
